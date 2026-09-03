@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이수회 자산 현황</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f6; color: #333; max-width: 950px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card { background-color: #ffffff; border: 1px solid #e0e0e0; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-box { background: white; border: 1px solid #e0e0e0; padding: 20px; border-radius: 12px; }
+        .summary-title { font-size: 0.85em; color: #666; margin-bottom: 8px; }
+        .summary-value { font-size: 1.4em; font-weight: bold; color: #111; margin-bottom: 5px; }
+        .text-red { color: #E53935; } .text-green { color: #2E7D32; } .text-blue { color: #4A90E2; }
+        
+        .portfolio-container { display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch; }
+        .portfolio-chart { max-width: 250px; flex: 1; display: flex; align-items: center; justify-content: center; }
+        .portfolio-list { flex: 2; min-width: 350px; }
+        .portfolio-item { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid #e9ecef; }
+        .portfolio-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 1.05em; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .portfolio-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em; color: #555; align-items: center; }
+        
+        .portfolio-summary { background: #E8EAF6; padding: 15px; border-radius: 8px; border: 1px solid #C5CAE9; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px; text-align: center; font-size: 1.05em; margin-top: 15px; }
+        .portfolio-summary > div { flex: 1; min-width: 120px; }
+        .portfolio-summary-title { font-size: 0.8em; color: #3F51B5; margin-bottom: 5px; font-weight: bold; }
+        
+        .gauge-container { margin-top: 15px; background: white; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+        .gauge-header-info { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 8px; color: #555; align-items: center; }
+        .gauge-track { width: 100%; height: 16px; background: #e0e0e0; border-radius: 8px; overflow: hidden; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
+        .gauge-fill { height: 100%; border-radius: 8px; transition: width 0.6s ease-out, background-color 0.4s; }
+        .gauge-target-mark { position: absolute; right: 0; top: 0; height: 100%; width: 4px; background: #333; z-index: 2; }
+        .gauge-alert { font-size: 0.85em; font-weight: bold; color: #E53935; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .input-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px;}
+        .input-row > div { flex: 1; min-width: 120px; }
+        .input-row label { display: block; font-size: 0.75em; color: #666; margin-bottom: 5px; }
+        .input-row input, .input-row select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.85em;}
+        
+        .btn-add { background: #4A90E2; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.3s;}
+        .btn-stock-small { background: #1A237E; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; white-space: nowrap; }
+        .btn-excel { background: #2E7D32; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold;}
+        .btn-upload { background: #FF8F00; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold;}
+        .btn-delete { background: #E53935; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
+        .btn-update { background: #4A90E2; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
+        .btn-admin { background: #333; color: #fff; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-reset { background: #d32f2f; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px;}
+        
+        .filter-tool { display: flex; align-items: center; gap: 10px; background: #fff; padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
+        
+        .data-table { width: 100%; min-width: 600px; border-collapse: collapse; text-align: center; font-size: 0.85em; }
+        .data-table th { background: #e0e0e0; padding: 12px; border-bottom: 1px solid #ccc; }
+        .data-table td { padding: 12px; border-bottom: 1px solid #E9ECEF; background: white; }
+
+        .admin-only { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header-top">
+        <h1 style="color: #1A237E; margin: 0;">💎 이수회 자산 현황</h1>
+        <button id="adminToggleBtn" class="btn-admin" onclick="toggleAdminMode()">🔒 관리자 로그인</button>
+    </div>
+    
+    <div class="summary-grid">
+        <div class="summary-box" style="border: 2px solid #1A237E;">
+            <div class="summary-title" style="color: #1A237E; font-weight: bold;">총 자산 (현금+예금+주식평가액)</div>
+            <div class="summary-value" id="totalAssetValue">0원</div>
+        </div>
+        <div class="summary-box">
+            <div class="summary-title">회비 잔액 (현금)</div>
+            <div class="summary-value" id="balanceValue">0원</div>
+        </div>
+        <div class="summary-box">
+            <div class="summary-title">기초자금</div>
+            <div class="summary-value" id="depositValue">0원</div>
+        </div>
+        <div class="summary-box">
+            <div class="summary-title">주식 총 평가 금액</div>
+            <div class="summary-value text-red" id="totalStockEval">0원</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <strong style="color: #1A237E; display: block; margin-bottom: 15px; font-size: 1.1em;">📈 주식 포트폴리오 및 매매 기록</strong>
+        
+        <div class="input-row admin-only" id="stockInputPanel" style="background: #e8eaf6; border: 1px solid #c5cae9; align-items: flex-end;">
+            <div><label>매매 일자</label><input type="date" id="sDate"></div>
+            <div><label>거래 종류</label><select id="sType"><option value="매수">매수 (신규/물타기)</option><option value="매도">매도 (익절/손절)</option></select></div>
+            <div><label>종목명</label><input type="text" id="sName" placeholder="예: 삼성전자"></div>
+            <div><label>수량 (주)</label><input type="text" id="sQty" oninput="formatNumber(this)"></div>
+            <div><label>체결 단가 (원)</label><input type="text" id="sPrice" oninput="formatNumber(this)"></div>
+            <div><label>수수료/거래세 (원)</label><input type="text" id="sFee" value="0" oninput="formatNumber(this)"></div>
+            <div style="flex: 0 0 auto; min-width: auto;">
+                <button class="btn-stock-small" onclick="saveStockTrade()">적용 🚀</button>
+            </div>
+        </div>
+
+        <div class="portfolio-summary">
+            <div><div class="portfolio-summary-title">총 매입금액</div><div id="uiTotalInvested" style="font-weight: bold;">0원</div></div>
+            <div><div class="portfolio-summary-title">총 평가액</div><div id="uiTotalEvaluated" style="font-weight: bold;">0원</div></div>
+            <div><div class="portfolio-summary-title">총 수익률</div><div id="uiOverallRate" style="font-weight: bold; font-size: 1.1em;">0.00%</div></div>
+        </div>
+
+        <div class="portfolio-container" style="margin-top: 20px;">
+            <div class="portfolio-chart"><canvas id="portfolioChart"></canvas></div>
+            <div class="portfolio-list" id="portfolioList"></div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <strong style="color: #1A237E; font-size: 1.1em;">📝 내역 관리</strong>
+            <div style="display: flex; gap: 10px; align-items: center;" class="admin-only" id="excelPanel">
+                <span id="backupAlert" style="color: #E53935; font-size: 0.85em; font-weight: bold; display: none;">⚠️ 백업 권장</span>
+                <input type="file" id="excelUpload" accept=".xlsx, .xls" style="display: none;" onchange="uploadExcel(event)">
+                <button class="btn-upload" onclick="document.getElementById('excelUpload').click()">📥 엑셀 업로드</button>
+                <button class="btn-excel" onclick="downloadExcel()">📤 엑셀 다운로드</button>
+            </div>
+        </div>
+        
+        <div class="input-row admin-only" id="recordInputPanel">
+            <div><label>발생일자</label><input type="date" id="rDate"></div>
+            <div><label>분류</label><select id="rType"><option value="수입">수입</option><option value="지출">지출</option></select></div>
+            <div><label>카테고리</label><input type="text" id="rCat" placeholder="기초자금, 회비 등"></div>
+            <div><label>금액 (원)</label><input type="text" id="rAmount" oninput="formatNumber(this)"></div>
+            <div style="flex: 2;"><label>상세내용</label><input type="text" id="rDetail"></div>
+        </div>
+        <button id="btnSaveRecord" class="btn-add admin-only" onclick="saveRecord()" style="margin-bottom: 15px;">일반 내역 추가하기</button>
+
+        <div class="filter-tool">
+            <label style="font-weight: bold; color: #333;">📅 월별 조회:</label>
+            <input type="month" id="filterMonth" onchange="renderData()" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; font-family: inherit;">
+            <button class="btn-update" onclick="document.getElementById('filterMonth').value=''; renderData();">전체 보기</button>
+        </div>
+
+        <div style="overflow-x: auto; width: 100%; border: 1px solid #ccc; border-radius: 8px;">
+            <table class="data-table">
+                <thead>
+                    <tr><th>발생일자</th><th>분류</th><th>카테고리</th><th>상세내용</th><th>금액</th><th class="admin-only th-admin">관리</th></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        
+        <button class="btn-reset admin-only" id="btnResetAll" onclick="resetAllData()">💣 모든 데이터 초기화 (주의)</button>
+    </div>
+
+    <!-- 기존 앱 로직 자바스크립트 -->
+    <script>
+        const ADMIN_PASSWORD = "1234";
+
+        let isAdmin = false;
+        let editingRecordIndex = -1;
+        let totalStockEvalGlobal = 0;
+        let unsavedChangesCount = 0;
+
+        // var로 선언하여 파이어베이스 모듈에서 접근 가능하도록 변경
+        var stocks = [];
+        var records = [];
+
+        function formatNumber(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            input.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        const savedStocks = localStorage.getItem('isu_stocks');
+        const savedRecords = localStorage.getItem('isu_records');
+        if (savedStocks) stocks = JSON.parse(savedStocks);
+        if (savedRecords) records = JSON.parse(savedRecords);
+
+        function saveData(isUserAction = true) {
+            // 오프라인 대비 기기 저장
+            localStorage.setItem('isu_stocks', JSON.stringify(stocks));
+            localStorage.setItem('isu_records', JSON.stringify(records));
+            
+            // 🚀 파이어베이스로 실시간 데이터 전송!
+            if (window.syncToFirebase) {
+                window.syncToFirebase(stocks, records);
+            }
+            
+            if (isUserAction) {
+                unsavedChangesCount++;
+                updateBackupAlert();
+            }
+        }
+
+        function updateBackupAlert() {
+            const alertSpan = document.getElementById('backupAlert');
+            if (unsavedChangesCount > 0) {
+                alertSpan.style.display = 'inline';
+                alertSpan.innerText = `⚠️ 백업 권장 (${unsavedChangesCount}건 변경)`;
+            } else {
+                alertSpan.style.display = 'none';
+            }
+        }
+
+        function toggleAdminMode() {
+            if (isAdmin) {
+                isAdmin = false;
+                document.getElementById('adminToggleBtn').innerText = "🔒 관리자 로그인";
+                document.getElementById('adminToggleBtn').style.background = "#333";
+            } else {
+                const pw = prompt(`관리자 비밀번호를 입력하세요`);
+                if (pw === ADMIN_PASSWORD) {
+                    isAdmin = true;
+                    document.getElementById('adminToggleBtn').innerText = "🔓 관리자 모드 종료";
+                    document.getElementById('adminToggleBtn').style.background = "#2E7D32";
+                } else if (pw !== null) {
+                    alert("비밀번호가 일치하지 않습니다.");
+                    return;
+                }
+            }
+            applyAdminUI();
+            renderPortfolio();
+            renderData();
+        }
+
+        function applyAdminUI() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            adminElements.forEach(el => {
+                if(el.tagName.toLowerCase() === 'th' || el.tagName.toLowerCase() === 'td') {
+                    el.style.display = isAdmin ? 'table-cell' : 'none';
+                } else {
+                    el.style.display = isAdmin ? (el.id === 'recordInputPanel' || el.id === 'stockInputPanel' || el.id === 'excelPanel' ? 'flex' : 'block') : 'none';
+                }
+            });
+        }
+
+        function resetAllData() {
+            if(confirm("정말 모든 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다!")) {
+                const pw = prompt("초기화를 진행하려면 관리자 비밀번호를 다시 입력하세요.");
+                if(pw === ADMIN_PASSWORD) {
+                    stocks = [];
+                    records = [];
+                    saveData(true);
+                    renderPortfolio();
+                    renderData();
+                    alert("모든 데이터가 깨끗하게 초기화되었습니다.");
+                } else {
+                    alert("비밀번호가 틀려 초기화를 취소합니다.");
+                }
+            }
+        }
+
+        function updateStockPrice(index) {
+            const stringValue = document.getElementById(`cp-${index}`).value;
+            const newPrice = parseInt(stringValue.replace(/,/g, ''));
+            if(!isNaN(newPrice)) { 
+                stocks[index].currentPrice = newPrice; 
+                saveData(true); renderPortfolio(); renderData(); 
+            }
+        }
+
+        function updateTargetRate(index) {
+            const newTarget = parseFloat(document.getElementById(`tr-${index}`).value);
+            if(!isNaN(newTarget) && newTarget > 0) { 
+                stocks[index].targetRate = newTarget; 
+                saveData(true); renderPortfolio(); 
+            } else {
+                alert("목표 수익률은 0보다 큰 숫자를 입력해주세요.");
+            }
+        }
+
+        function editStockItem(index) {
+            const stock = stocks[index];
+            const newQty = prompt(`[${stock.name}] 새로운 보유 수량을 입력하세요 (현재: ${stock.quantity}주)`, stock.quantity);
+            if(newQty === null) return;
+            
+            const newAvg = prompt(`[${stock.name}] 새로운 매수 평단가를 입력하세요 (현재: ${stock.avgPrice}원)`, stock.avgPrice);
+            if(newAvg === null) return;
+
+            const parsedQty = parseInt(newQty.replace(/,/g, ''));
+            const parsedAvg = parseInt(newAvg.replace(/,/g, ''));
+
+            if(!isNaN(parsedQty) && !isNaN(parsedAvg)) {
+                stocks[index].quantity = parsedQty;
+                stocks[index].avgPrice = parsedAvg;
+                saveData(true); renderPortfolio(); renderData();
+                alert("주식 정보가 수정되었습니다.");
+            } else {
+                alert("올바른 숫자를 입력해주세요.");
+            }
+        }
+
+        function removeStockItem(index) {
+            if(confirm(`[${stocks[index].name}] 종목을 삭제하시겠습니까?`)) {
+                stocks.splice(index, 1); saveData(true); renderPortfolio(); renderData();
+            }
+        }
+
+        function saveStockTrade() {
+            const date = document.getElementById('sDate').value;
+            const type = document.getElementById('sType').value;
+            const name = document.getElementById('sName').value;
+            const qtyStr = document.getElementById('sQty').value || '';
+            const priceStr = document.getElementById('sPrice').value || '';
+            const feeStr = document.getElementById('sFee').value || '0';
+            
+            const qty = parseInt(qtyStr.replace(/,/g, ''));
+            const price = parseInt(priceStr.replace(/,/g, ''));
+            const fee = parseInt(feeStr.replace(/,/g, '')) || 0;
+
+            if(!date || !name || isNaN(qty) || isNaN(price)) return alert("매매 정보를 정확히 입력해주세요!");
+
+            const tradeAmount = qty * price;
+            let stock = stocks.find(s => s.name === name);
+
+            if(type === '매수') {
+                if(stock) {
+                    const totalCost = (stock.quantity * stock.avgPrice) + tradeAmount;
+                    stock.quantity += qty;
+                    stock.avgPrice = totalCost / stock.quantity;
+                    stock.currentPrice = price; 
+                } else {
+                    stocks.push({ name: name, quantity: qty, avgPrice: price, currentPrice: price, targetRate: 10 });
+                }
+                records.push({ date: date, type: '지출', category: '주식매수', detail: `${name} ${qty}주`, amount: tradeAmount });
+                if(fee > 0) records.push({ date: date, type: '지출', category: '주식수수료', detail: `${name} 매수 수수료`, amount: fee });
+            } 
+            else if (type === '매도') {
+                if(!stock || stock.quantity < qty) return alert("보유 수량이 부족합니다!");
+                stock.quantity -= qty;
+                if(stock.quantity === 0) stocks = stocks.filter(s => s.name !== name); 
+                records.push({ date: date, type: '수입', category: '주식매도', detail: `${name} ${qty}주`, amount: tradeAmount });
+                if(fee > 0) records.push({ date: date, type: '지출', category: '거래세/수수료', detail: `${name} 매도 세금`, amount: fee });
+            }
+
+            document.getElementById('sName').value = ''; document.getElementById('sQty').value = ''; document.getElementById('sPrice').value = ''; document.getElementById('sFee').value = '0';
+            saveData(true); renderPortfolio(); renderData();
+        }
+
+        function renderPortfolio() {
+            let chartLabels = []; let chartData = []; 
+            totalStockEvalGlobal = 0; let totalInvestedGlobal = 0; 
+            const listContainer = document.getElementById('portfolioList');
+            listContainer.innerHTML = '';
+
+            let processedStocks = stocks.map((stock, i) => {
+                const invested = stock.quantity * stock.avgPrice;
+                const evaluated = stock.quantity * stock.currentPrice;
+                const profit = evaluated - invested;
+                const rate = (profit / invested) * 100;
+                totalStockEvalGlobal += evaluated; totalInvestedGlobal += invested; 
+                if(stock.targetRate === undefined) stock.targetRate = 10; 
+                return { ...stock, invested, evaluated, profit, rate, originalIndex: i };
+            });
+
+            let overallRate = 0;
+            if (totalInvestedGlobal > 0) overallRate = ((totalStockEvalGlobal - totalInvestedGlobal) / totalInvestedGlobal) * 100;
+
+            document.getElementById('uiTotalInvested').innerText = totalInvestedGlobal.toLocaleString() + '원';
+            document.getElementById('uiTotalEvaluated').innerText = totalStockEvalGlobal.toLocaleString() + '원';
+            const overallRateUI = document.getElementById('uiOverallRate');
+            overallRateUI.innerText = `${overallRate >= 0 ? '+' : ''}${overallRate.toFixed(2)}%`;
+            overallRateUI.className = overallRate >= 0 ? 'text-red' : 'text-blue';
+
+            processedStocks.sort((a, b) => b.rate - a.rate);
+
+            processedStocks.forEach((stock) => {
+                const pClass = stock.rate >= 0 ? 'text-red' : 'text-blue';
+                const pSign = stock.rate >= 0 ? '+' : '';
+                chartLabels.push(stock.name); chartData.push(stock.evaluated);
+
+                let achievePercent = stock.rate > 0 ? (stock.rate / stock.targetRate) * 100 : 0;
+                let displayWidth = Math.min(achievePercent, 100); 
+                let gaugeColor = '#4CAF50'; 
+                if(achievePercent >= 100) gaugeColor = '#E53935'; else if(achievePercent >= 70) gaugeColor = '#FFB300';
+                let alertMessage = achievePercent >= 100 ? `<span class="gauge-alert">🔥 목표 도달! 매도 검토!</span>` : '';
+
+                let adminControls = isAdmin ? `
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button onclick="editStockItem(${stock.originalIndex})" class="btn-update">✏️ 내역 수정</button>
+                        <button onclick="removeStockItem(${stock.originalIndex})" class="btn-delete">🗑️ 종목 삭제</button>
+                    </div>
+                ` : '';
+
+                let targetSetBtn = isAdmin ? `<button class="btn-update" style="background:#555;" onclick="updateTargetRate(${stock.originalIndex})">설정</button>` : '';
+                let currentSetBtn = isAdmin ? `<button class="btn-update" onclick="updateStockPrice(${stock.originalIndex})">갱신</button>` : '';
+                
+                let currentPriceUI = isAdmin 
+                    ? `<input type="text" id="cp-${stock.originalIndex}" value="${stock.currentPrice.toLocaleString()}" oninput="formatNumber(this)" style="width: 70px; padding: 3px; border: 1px solid #ccc; border-radius: 4px;">원 ${currentSetBtn}`
+                    : `<strong>${stock.currentPrice.toLocaleString()}원</strong>`;
+
+                let targetRateUI = isAdmin
+                    ? `<input type="number" id="tr-${stock.originalIndex}" value="${stock.targetRate}" style="width: 40px; padding: 2px; border: 1px solid #ccc; text-align: center;">% ${targetSetBtn}`
+                    : `<strong>${stock.targetRate}%</strong>`;
+
+                listContainer.innerHTML += `
+                    <div class="portfolio-item">
+                        <div class="portfolio-header">
+                            <strong>${stock.name}</strong><span class="${pClass} font-weight-bold" style="font-size: 1.1em;">${pSign}${stock.rate.toFixed(2)}%</span>
+                        </div>
+                        <div class="portfolio-details">
+                            <div>보유 수량: <strong>${stock.quantity}주</strong></div>
+                            <div>매수 평단가: ${Math.round(stock.avgPrice).toLocaleString()}원</div>
+                            <div>매입 금액: <strong>${Math.round(stock.invested).toLocaleString()}원</strong></div>
+                            <div>현재가: ${currentPriceUI}</div>
+                            <div>평가 금액: <strong class="${pClass}">${stock.evaluated.toLocaleString()}원</strong></div>
+                        </div>
+                        <div class="gauge-container">
+                            <div class="gauge-header-info">
+                                <div>목표 수익률: ${targetRateUI}</div>
+                                <div>달성률: <strong>${achievePercent.toFixed(1)}%</strong> ${alertMessage}</div>
+                            </div>
+                            <div class="gauge-track"><div class="gauge-fill" style="width: ${displayWidth}%; background-color: ${gaugeColor};"></div><div class="gauge-target-mark"></div></div>
+                        </div>
+                        ${adminControls}
+                    </div>`;
+            });
+
+            document.getElementById('totalStockEval').innerText = totalStockEvalGlobal.toLocaleString() + '원';
+            if(window.myChart) window.myChart.destroy();
+            if(chartData.length > 0) {
+                window.myChart = new Chart(document.getElementById('portfolioChart').getContext('2d'), {
+                    type: 'doughnut', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: ['#1A237E', '#4A90E2', '#81D4FA', '#FFB300'], borderWidth: 0 }] },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { 
+                                position: 'bottom',
+                                align: 'start' 
+                            } 
+                        } 
+                    }
+                });
+            }
+        }
+
+        function renderData() {
+            const tbody = document.getElementById('tableBody'); 
+            tbody.innerHTML = '';
+            
+            let tCash = 0;
+            let tDeposit = 0;
+            
+            records.forEach((r) => {
+                if(r.category === '기초자금') {
+                    if(r.type === '수입') tDeposit += r.amount;
+                    if(r.type === '지출') tDeposit -= r.amount;
+                } else {
+                    if(r.type === '수입') tCash += r.amount;
+                    if(r.type === '지출') tCash -= r.amount;
+                }
+            });
+            
+            document.getElementById('balanceValue').innerText = `${tCash.toLocaleString()}원`;
+            document.getElementById('depositValue').innerText = `${tDeposit.toLocaleString()}원`; 
+            document.getElementById('totalAssetValue').innerText = `${(tCash + tDeposit + totalStockEvalGlobal).toLocaleString()}원`; 
+
+            let displayRecords = records.map((r, index) => ({ ...r, originalIndex: index }));
+            displayRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const filterMonth = document.getElementById('filterMonth').value;
+            if (filterMonth) {
+                displayRecords = displayRecords.filter(r => r.date.startsWith(filterMonth));
+            }
+
+            displayRecords.forEach((r) => {
+                let adminCell = isAdmin ? `
+                    <td class="admin-only" style="display: table-cell;">
+                        <button class="btn-update" onclick="editRecord(${r.originalIndex})">수정</button>
+                        <button class="btn-delete" onclick="deleteRecord(${r.originalIndex})">삭제</button>
+                    </td>` : `<td class="admin-only" style="display: none;"></td>`;
+
+                tbody.innerHTML += `
+                    <tr><td>${r.date}</td><td class="${r.type === '수입' ? 'text-green' : 'text-red'}">${r.type}</td>
+                    <td>${r.category}</td><td>${r.detail}</td><td>${r.amount.toLocaleString()}원</td>
+                    ${adminCell}</tr>`;
+            });
+        }
+
+        function editRecord(idx) {
+            const r = records[idx];
+            document.getElementById('rDate').value = r.date;
+            document.getElementById('rType').value = r.type;
+            document.getElementById('rCat').value = r.category;
+            document.getElementById('rAmount').value = r.amount.toLocaleString(); 
+            document.getElementById('rDetail').value = r.detail;
+            
+            editingRecordIndex = idx;
+            const btn = document.getElementById('btnSaveRecord');
+            btn.innerText = "✏️ 내역 수정 완료하기";
+            btn.style.background = "#FF8F00"; 
+            document.getElementById('recordInputPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function deleteRecord(idx) { 
+            if(confirm("내역을 삭제하시겠습니까?")) { 
+                records.splice(idx, 1); saveData(true); renderData(); 
+            } 
+        }
+        
+        function saveRecord() {
+            const date = document.getElementById('rDate').value;
+            const type = document.getElementById('rType').value;
+            const cat = document.getElementById('rCat').value;
+            const detail = document.getElementById('rDetail').value;
+            const amtStr = document.getElementById('rAmount').value || '';
+            const amt = parseInt(amtStr.replace(/,/g, ''));
+            
+            if(!date || !cat || !detail || isNaN(amt)) return alert("모든 항목을 입력해주세요!");
+            
+            if (editingRecordIndex > -1) {
+                records[editingRecordIndex] = { date, type, category: cat, detail, amount: amt };
+                const btn = document.getElementById('btnSaveRecord');
+                btn.innerText = "일반 내역 추가하기";
+                btn.style.background = "#4A90E2";
+                editingRecordIndex = -1; 
+                alert("내역이 성공적으로 수정되었습니다! ✅");
+            } else {
+                records.push({ date, type, category: cat, detail, amount: amt });
+            }
+            
+            document.getElementById('rCat').value = ''; document.getElementById('rAmount').value = ''; document.getElementById('rDetail').value = '';
+            saveData(true); renderData();
+        }
+        
+        function uploadExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader(); 
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                let isUpdated = false;
+                if (workbook.Sheets['가계부']) { records = XLSX.utils.sheet_to_json(workbook.Sheets['가계부']); isUpdated = true; }
+                if (workbook.Sheets['주식']) { stocks = XLSX.utils.sheet_to_json(workbook.Sheets['주식']); isUpdated = true; }
+                if(isUpdated) { 
+                    saveData(false); 
+                    renderPortfolio(); 
+                    renderData(); 
+                    alert("성공적으로 데이터를 불러왔습니다! 🎉"); 
+                } 
+                else { alert("'가계부' 또는 '주식' 시트를 찾을 수 없습니다."); }
+                event.target.value = ''; 
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function downloadExcel() {
+            const wb = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(records), "가계부");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stocks), "주식");
+            XLSX.writeFile(wb, "이수회_재무장부.xlsx");
+
+            unsavedChangesCount = 0;
+            updateBackupAlert();
+        }
+
+        applyAdminUI();
+        renderPortfolio(); 
+        renderData();
+    </script>
+
+    <!-- 🚀 Firebase 실시간 데이터베이스 연동 코드 -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+      // 회원님이 발급받으신 파이어베이스 접속 키
+      const firebaseConfig = {
+        apiKey: "AIzaSyD7kQJgaqWcCQj7vM7h5vpQ6-1coo8Z3fM",
+        authDomain: "isu-dashboard-e9cb7.firebaseapp.com",
+        projectId: "isu-dashboard-e9cb7",
+        storageBucket: "isu-dashboard-e9cb7.firebasestorage.app",
+        messagingSenderId: "1094960199213",
+        appId: "1:1094960199213:web:98b3474d775910106beaa4"
+      };
+
+      // 파이어베이스 초기화 및 DB 연결
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const docRef = doc(db, "isuhwe", "financeData"); // 이수회 재무 데이터가 저장될 공간
+
+      // 1. 데이터베이스 실시간 감지 (누군가 데이터를 바꾸면 내 화면도 즉시 변경)
+      onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          // 파이어베이스에 저장된 데이터로 내 화면 데이터 교체
+          if (data.stocks) stocks.splice(0, stocks.length, ...data.stocks);
+          if (data.records) records.splice(0, records.length, ...data.records);
+          
+          // 화면 다시 그리기
+          renderPortfolio();
+          renderData();
+        }
+      });
+
+      // 2. 관리자가 화면에서 추가/수정/삭제 시 파이어베이스로 전송
+      window.syncToFirebase = async function(stocksData, recordsData) {
+        try {
+            await setDoc(docRef, {
+                stocks: stocksData,
+                records: recordsData
+            });
+        } catch (error) {
+            console.error("데이터베이스 저장 실패:", error);
+            alert("서버 저장에 실패했습니다. 관리자에게 문의하세요.");
+        }
+      };
+    </script>
+</body>
+</html>
