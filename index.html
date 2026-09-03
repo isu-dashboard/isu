@@ -63,7 +63,7 @@
     <div class="header-top">
         <h1 style="color: #1A237E; margin: 0;">💎 이수회 자산 현황</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-update admin-only" onclick="changeAdminPassword()" style="background: #FFB300; color: #333; font-weight: bold;">🔑 비밀번호 변경</button>
+            <button class="btn-update admin-only" onclick="changeAdminPassword()" style="background: #FFB300; color: #333; font-weight: bold; display: none;">🔑 비밀번호 변경</button>
             <button id="adminToggleBtn" class="btn-admin" onclick="toggleAdminMode()">🔒 관리자 로그인</button>
         </div>
     </div>
@@ -90,7 +90,7 @@
     <div class="card">
         <strong style="color: #1A237E; display: block; margin-bottom: 15px; font-size: 1.1em;">📈 주식 포트폴리오 및 매매 기록</strong>
         
-        <div class="input-row admin-only" id="stockInputPanel" style="background: #e8eaf6; border: 1px solid #c5cae9; align-items: flex-end;">
+        <div class="input-row admin-only" id="stockInputPanel" style="background: #e8eaf6; border: 1px solid #c5cae9; align-items: flex-end; display: none;">
             <div><label>매매 일자</label><input type="date" id="sDate"></div>
             <div><label>거래 종류</label><select id="sType"><option value="매수">매수 (신규/물타기)</option><option value="매도">매도 (익절/손절)</option></select></div>
             <div><label>종목명</label><input type="text" id="sName" placeholder="예: 삼성전자"></div>
@@ -117,7 +117,7 @@
     <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <strong style="color: #1A237E; font-size: 1.1em;">📝 내역 관리</strong>
-            <div style="display: flex; gap: 10px; align-items: center;" class="admin-only" id="excelPanel">
+            <div style="display: flex; gap: 10px; align-items: center; display: none;" class="admin-only" id="excelPanel">
                 <span id="backupAlert" style="color: #E53935; font-size: 0.85em; font-weight: bold; display: none;">⚠️ 백업 권장</span>
                 <input type="file" id="excelUpload" accept=".xlsx, .xls" style="display: none;" onchange="uploadExcel(event)">
                 <button class="btn-upload" onclick="document.getElementById('excelUpload').click()">📥 엑셀 업로드</button>
@@ -125,14 +125,14 @@
             </div>
         </div>
         
-        <div class="input-row admin-only" id="recordInputPanel">
+        <div class="input-row admin-only" id="recordInputPanel" style="display: none;">
             <div><label>발생일자</label><input type="date" id="rDate"></div>
             <div><label>분류</label><select id="rType"><option value="수입">수입</option><option value="지출">지출</option></select></div>
             <div><label>카테고리</label><input type="text" id="rCat" placeholder="기초자금, 회비 등"></div>
             <div><label>금액 (원)</label><input type="text" id="rAmount" oninput="formatNumber(this)"></div>
             <div style="flex: 2;"><label>상세내용</label><input type="text" id="rDetail"></div>
         </div>
-        <button id="btnSaveRecord" class="btn-add admin-only" onclick="saveRecord()" style="margin-bottom: 15px;">일반 내역 추가하기</button>
+        <button id="btnSaveRecord" class="btn-add admin-only" onclick="saveRecord()" style="margin-bottom: 15px; display: none;">일반 내역 추가하기</button>
 
         <div class="filter-tool">
             <label style="font-weight: bold; color: #333;">📅 월별 조회:</label>
@@ -143,18 +143,16 @@
         <div style="overflow-x: auto; width: 100%; border: 1px solid #ccc; border-radius: 8px;">
             <table class="data-table">
                 <thead>
-                    <tr><th>발생일자</th><th>분류</th><th>카테고리</th><th>상세내용</th><th>금액</th><th class="admin-only th-admin">관리</th></tr>
+                    <tr><th>발생일자</th><th>분류</th><th>카테고리</th><th>상세내용</th><th>금액</th><th class="admin-only th-admin" style="display: none;">관리</th></tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
             </table>
         </div>
         
-        <button class="btn-reset admin-only" id="btnResetAll" onclick="resetAllData()">💣 모든 데이터 초기화 (주의)</button>
+        <button class="btn-reset admin-only" id="btnResetAll" onclick="resetAllData()" style="display: none;">💣 모든 데이터 초기화 (주의)</button>
     </div>
 
-    <!-- 기존 앱 로직 자바스크립트 -->
     <script>
-        // 이제 비밀번호를 데이터베이스에서 읽고 쓸 수 있도록 var 변수로 변경
         var ADMIN_PASSWORD = "1234";
 
         let isAdmin = false;
@@ -176,11 +174,12 @@
         if (savedRecords) records = JSON.parse(savedRecords);
 
         function saveData(isUserAction = true) {
-            // 오프라인 대비 기기 저장
+            if (!isAdmin) return; // 보안 추가: 관리자만 저장 가능
+
             localStorage.setItem('isu_stocks', JSON.stringify(stocks));
             localStorage.setItem('isu_records', JSON.stringify(records));
             
-            // 🚀 파이어베이스로 실시간 데이터(비밀번호 포함) 전송!
+            // 파이어베이스로 실시간 데이터 전송!
             if (window.syncToFirebase) {
                 window.syncToFirebase(stocks, records);
             }
@@ -201,8 +200,13 @@
             }
         }
 
-        // 비밀번호 변경 기능 추가
+        // 비밀번호 변경 기능 (권한 체크 추가)
         function changeAdminPassword() {
+            if (!isAdmin) {
+                alert("권한이 없습니다. 관리자 로그인을 먼저 해주세요.");
+                return;
+            }
+
             const currentPw = prompt("현재 관리자 비밀번호를 입력하세요.");
             if (currentPw !== ADMIN_PASSWORD) {
                 alert("비밀번호가 일치하지 않습니다.");
@@ -220,7 +224,7 @@
             }
             
             ADMIN_PASSWORD = newPw;
-            saveData(true); // 비밀번호 파이어베이스에 저장
+            saveData(true); 
             alert("✅ 비밀번호가 성공적으로 변경되었습니다!");
         }
 
@@ -250,13 +254,18 @@
             adminElements.forEach(el => {
                 if(el.tagName.toLowerCase() === 'th' || el.tagName.toLowerCase() === 'td') {
                     el.style.display = isAdmin ? 'table-cell' : 'none';
+                } else if (el.id === 'recordInputPanel' || el.id === 'stockInputPanel' || el.id === 'excelPanel') {
+                    el.style.display = isAdmin ? 'flex' : 'none';
                 } else {
-                    el.style.display = isAdmin ? (el.id === 'recordInputPanel' || el.id === 'stockInputPanel' || el.id === 'excelPanel' ? 'flex' : 'block') : 'none';
+                    el.style.display = isAdmin ? 'block' : 'none';
                 }
             });
         }
 
+        // 삭제, 수정, 추가 등 모든 로직에 권한(isAdmin) 필수 체크 추가
         function resetAllData() {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             if(confirm("정말 모든 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다!")) {
                 const pw = prompt("초기화를 진행하려면 관리자 비밀번호를 다시 입력하세요.");
                 if(pw === ADMIN_PASSWORD) {
@@ -273,6 +282,8 @@
         }
 
         function updateStockPrice(index) {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const stringValue = document.getElementById(`cp-${index}`).value;
             const newPrice = parseInt(stringValue.replace(/,/g, ''));
             if(!isNaN(newPrice)) { 
@@ -282,6 +293,8 @@
         }
 
         function updateTargetRate(index) {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const newTarget = parseFloat(document.getElementById(`tr-${index}`).value);
             if(!isNaN(newTarget) && newTarget > 0) { 
                 stocks[index].targetRate = newTarget; 
@@ -292,6 +305,8 @@
         }
 
         function editStockItem(index) {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const stock = stocks[index];
             const newQty = prompt(`[${stock.name}] 새로운 보유 수량을 입력하세요 (현재: ${stock.quantity}주)`, stock.quantity);
             if(newQty === null) return;
@@ -313,12 +328,16 @@
         }
 
         function removeStockItem(index) {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             if(confirm(`[${stocks[index].name}] 종목을 삭제하시겠습니까?`)) {
                 stocks.splice(index, 1); saveData(true); renderPortfolio(); renderData();
             }
         }
 
         function saveStockTrade() {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const date = document.getElementById('sDate').value;
             const type = document.getElementById('sType').value;
             const name = document.getElementById('sName').value;
@@ -447,10 +466,7 @@
                         responsive: true, 
                         maintainAspectRatio: false, 
                         plugins: { 
-                            legend: { 
-                                position: 'bottom',
-                                align: 'start' 
-                            } 
+                            legend: { position: 'bottom', align: 'start' } 
                         } 
                     }
                 });
@@ -501,6 +517,8 @@
         }
 
         function editRecord(idx) {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const r = records[idx];
             document.getElementById('rDate').value = r.date;
             document.getElementById('rType').value = r.type;
@@ -516,12 +534,16 @@
         }
 
         function deleteRecord(idx) { 
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             if(confirm("내역을 삭제하시겠습니까?")) { 
                 records.splice(idx, 1); saveData(true); renderData(); 
             } 
         }
         
         function saveRecord() {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const date = document.getElementById('rDate').value;
             const type = document.getElementById('rType').value;
             const cat = document.getElementById('rCat').value;
@@ -547,6 +569,8 @@
         }
         
         function uploadExcel(event) {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader(); 
@@ -569,6 +593,8 @@
         }
 
         function downloadExcel() {
+            if (!isAdmin) { alert("권한이 없습니다."); return; }
+
             const wb = XLSX.utils.book_new(); 
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(records), "가계부");
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stocks), "주식");
@@ -603,21 +629,19 @@
       const db = getFirestore(app);
       const docRef = doc(db, "isuhwe", "financeData"); // 이수회 재무 데이터가 저장될 공간
 
-      // 1. 데이터베이스 실시간 감지 (누군가 데이터를 바꾸면 내 화면도 즉시 변경)
+      // 1. 데이터베이스 실시간 감지
       onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           
-          // 파이어베이스에 저장된 데이터로 내 화면 데이터 교체
           if (data.stocks) stocks.splice(0, stocks.length, ...data.stocks);
           if (data.records) records.splice(0, records.length, ...data.records);
           
-          // 🚀 DB에 저장된 비밀번호가 있다면 현재 비밀번호를 그것으로 갱신
+          // 🚀 DB에 저장된 비밀번호가 있다면 현재 비밀번호를 갱신
           if (data.adminPassword) {
               ADMIN_PASSWORD = data.adminPassword;
           }
           
-          // 화면 다시 그리기
           renderPortfolio();
           renderData();
         }
@@ -629,7 +653,7 @@
             await setDoc(docRef, {
                 stocks: stocksData,
                 records: recordsData,
-                adminPassword: ADMIN_PASSWORD // 🚀 비밀번호도 파이어베이스에 함께 저장
+                adminPassword: ADMIN_PASSWORD // 비밀번호도 함께 저장
             });
         } catch (error) {
             console.error("데이터베이스 저장 실패:", error);
