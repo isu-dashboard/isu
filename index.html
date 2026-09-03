@@ -62,7 +62,10 @@
 
     <div class="header-top">
         <h1 style="color: #1A237E; margin: 0;">💎 이수회 자산 현황</h1>
-        <button id="adminToggleBtn" class="btn-admin" onclick="toggleAdminMode()">🔒 관리자 로그인</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn-update admin-only" onclick="changeAdminPassword()" style="background: #FFB300; color: #333; font-weight: bold;">🔑 비밀번호 변경</button>
+            <button id="adminToggleBtn" class="btn-admin" onclick="toggleAdminMode()">🔒 관리자 로그인</button>
+        </div>
     </div>
     
     <div class="summary-grid">
@@ -151,14 +154,14 @@
 
     <!-- 기존 앱 로직 자바스크립트 -->
     <script>
-        const ADMIN_PASSWORD = "1234";
+        // 이제 비밀번호를 데이터베이스에서 읽고 쓸 수 있도록 var 변수로 변경
+        var ADMIN_PASSWORD = "1234";
 
         let isAdmin = false;
         let editingRecordIndex = -1;
         let totalStockEvalGlobal = 0;
         let unsavedChangesCount = 0;
 
-        // var로 선언하여 파이어베이스 모듈에서 접근 가능하도록 변경
         var stocks = [];
         var records = [];
 
@@ -177,7 +180,7 @@
             localStorage.setItem('isu_stocks', JSON.stringify(stocks));
             localStorage.setItem('isu_records', JSON.stringify(records));
             
-            // 🚀 파이어베이스로 실시간 데이터 전송!
+            // 🚀 파이어베이스로 실시간 데이터(비밀번호 포함) 전송!
             if (window.syncToFirebase) {
                 window.syncToFirebase(stocks, records);
             }
@@ -196,6 +199,29 @@
             } else {
                 alertSpan.style.display = 'none';
             }
+        }
+
+        // 비밀번호 변경 기능 추가
+        function changeAdminPassword() {
+            const currentPw = prompt("현재 관리자 비밀번호를 입력하세요.");
+            if (currentPw !== ADMIN_PASSWORD) {
+                alert("비밀번호가 일치하지 않습니다.");
+                return;
+            }
+            const newPw = prompt("새롭게 설정할 비밀번호를 입력하세요.");
+            if (!newPw || newPw.trim() === "") {
+                alert("유효한 비밀번호를 입력해주세요.");
+                return;
+            }
+            const confirmPw = prompt("새로운 비밀번호를 다시 한 번 입력하세요.");
+            if (newPw !== confirmPw) {
+                alert("입력하신 두 비밀번호가 일치하지 않습니다.");
+                return;
+            }
+            
+            ADMIN_PASSWORD = newPw;
+            saveData(true); // 비밀번호 파이어베이스에 저장
+            alert("✅ 비밀번호가 성공적으로 변경되었습니다!");
         }
 
         function toggleAdminMode() {
@@ -586,6 +612,11 @@
           if (data.stocks) stocks.splice(0, stocks.length, ...data.stocks);
           if (data.records) records.splice(0, records.length, ...data.records);
           
+          // 🚀 DB에 저장된 비밀번호가 있다면 현재 비밀번호를 그것으로 갱신
+          if (data.adminPassword) {
+              ADMIN_PASSWORD = data.adminPassword;
+          }
+          
           // 화면 다시 그리기
           renderPortfolio();
           renderData();
@@ -597,7 +628,8 @@
         try {
             await setDoc(docRef, {
                 stocks: stocksData,
-                records: recordsData
+                records: recordsData,
+                adminPassword: ADMIN_PASSWORD // 🚀 비밀번호도 파이어베이스에 함께 저장
             });
         } catch (error) {
             console.error("데이터베이스 저장 실패:", error);
