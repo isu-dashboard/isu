@@ -1,6 +1,6 @@
 {
-  "name": "이수회 공식 자산 현황",
-  "short_name": "이수회장부",
+  "name": "이수회 파이낸스",
+  "short_name": "이수자산",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
