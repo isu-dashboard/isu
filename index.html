@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이수회 파이낸스 </title>
+    <!-- 1. 사이트 탭 이름 변경 -->
+    <title>이수회 파이낸스</title>
     
     <!-- 모바일 기기 바탕화면 아이콘 및 PWA 설정 연결 -->
     <link rel="manifest" href="manifest.json">
@@ -71,7 +72,8 @@
 <body>
 
     <div class="header-top">
-        <h1 style="color: #1A237E; margin: 0;">💎 이수회 파이낸스 </h1>
+        <!-- 2. 메인 타이틀 변경 -->
+        <h1 style="color: #1A237E; margin: 0;">💎 이수회 파이낸스</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn-update admin-only" onclick="changeAdminPassword()" style="background: #FFB300; color: #333; font-weight: bold; display: none;">🔑 비밀번호 변경</button>
             <button id="adminToggleBtn" class="btn-admin" onclick="toggleAdminMode()">🔒 관리자 로그인</button>
@@ -80,11 +82,11 @@
     
     <div class="summary-grid">
         <div class="summary-box" style="border: 2px solid #1A237E;">
-            <div class="summary-title" style="color: #1A237E; font-weight: bold;">총 자산 (현금+기초자금+주식평가액)</div>
+            <div class="summary-title" style="color: #1A237E; font-weight: bold;">자산 (현금+기초자금+주식평가액)</div>
             <div class="summary-value" id="totalAssetValue">0원</div>
         </div>
         <div class="summary-box">
-            <div class="summary-title">회비잔액(현금)</div>
+            <div class="summary-title">현금</div>
             <div class="summary-value" id="balanceValue">0원</div>
         </div>
         <div class="summary-box">
@@ -92,6 +94,7 @@
             <div class="summary-value" id="depositValue">0원</div>
         </div>
         <div class="summary-box">
+            <!-- 3. 카드 항목 이름 변경 -->
             <div class="summary-title">주식평가액</div>
             <div class="summary-value text-red" id="totalStockEval">0원</div>
         </div>
